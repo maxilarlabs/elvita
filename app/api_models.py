@@ -2,8 +2,9 @@ from collections import deque
 from datetime import datetime, time, date
 from typing import Literal
 from fastapi import WebSocket, BackgroundTasks
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from enum import Enum
+import numpy as np
 
 class Chat(BaseModel):
     persona: str
@@ -17,11 +18,12 @@ class Persona(BaseModel):
 
 class Ejecucion(BaseModel):
 
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     buffer_audio: list=[]
-    threshold: float=1.8
-    contador_silencio: int=0
-    contador_habla: int=0
-    bandera_silencio: bool=False
+    pcm_buffer: np.ndarray = Field(default_factory=lambda: np.array([], dtype=np.float32))
+    vad_iterator: object = None
+    habla_activa: bool = False
     stream_sid: str=""
     persona: Persona
     espacio_blanco: float=0

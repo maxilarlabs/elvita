@@ -1,47 +1,59 @@
-from datetime import datetime, timedelta
 import os
 
 from anthropic import AsyncAnthropic
-from app import api_models
+from openai import AsyncOpenAI
+from groq import AsyncGroq
 
 from dotenv import load_dotenv
-import litellm
 
 load_dotenv()
 
-litellm.success_callback=["helicone"]
+ANTHROPIC_API_KEY=os.environ.get("ANTHROPIC_API_KEY")
+OPENAI_KEY=os.environ.get("OPENAI_KEY")
+GROQ=os.environ.get("GROQ")
 
-HELICONE_LLAVE=os.environ.get("HELICONE_API_KEY")
+client = AsyncAnthropic(api_key=ANTHROPIC_API_KEY)
+openai_client = AsyncOpenAI(api_key=OPENAI_KEY)
+groq_client = AsyncGroq(api_key=GROQ)
 
-client = AsyncAnthropic(
-  base_url="https://anthropic.helicone.ai",
-  default_headers={
-    "Helicone-Auth": f"Bearer {HELICONE_LLAVE}",
-  },
-)
+async def call_claude(sistema,messages,modelo="claude-haiku-4-5-20251001",temperatura=0):
 
-async def call_open(messages,formato_respuesta,modelo="openai/gpt-4o-mini",temperatura=0):
-
-
-    response = await litellm.acompletion(
-        model=modelo,
-        messages=messages,
-        temperature=temperatura,
-        response_format=formato_respuesta
-    )
-
-    return response
-
-async def call_claude(sistema,messages,tools,modelo,temperatura,tipo_funciones="auto"):
-  
-  response_claude = await client.messages.create(
+  response = await client.messages.create(
       model=modelo,
       system=sistema,
       messages=messages,
-      tools=tools,
-      tool_choice={"type": tipo_funciones,"disable_parallel_tool_use":True},
       temperature=temperatura,
       max_tokens=8000
   )
 
-  return response_claude
+  print(response)
+
+  return response.content[0].text
+
+async def call_luna(sistema,messages,modelo="gpt-5.6-luna"):
+
+  full_messages=[{"role": "system","content": sistema}] + messages
+
+  # gpt-5.6-luna solo soporta el temperature default (1), no se puede ajustar
+  response = await openai_client.chat.completions.create(
+      model=modelo,
+      messages=full_messages,
+  )
+
+  print(response)
+
+  return response.choices[0].message.content
+
+async def call_groq_llama(sistema,messages,modelo="llama-3.3-70b-versatile",temperatura=0):
+
+  full_messages=[{"role": "system","content": sistema}] + messages
+
+  response = await groq_client.chat.completions.create(
+      model=modelo,
+      messages=full_messages,
+      temperature=temperatura,
+  )
+
+  print(response)
+
+  return response.choices[0].message.content
